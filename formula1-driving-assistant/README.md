@@ -33,6 +33,7 @@ Perfect for drivers wanting to improve in:
 - **Driving Zones Map** — Color-coded braking (red), acceleration (green), full throttle (blue)
 - **Speed Gradient Map** — Track colored by speed (slow=blue → fast=red)
 - **Telemetry Dashboard** — Speed trace, throttle/brake inputs, gear usage
+- **🆕 Animated Lap Replay** — Watch the car move through the track with real-time telemetry!
 
 ### 🔄 Corner-by-Corner Breakdown
 - Entry speed
@@ -101,6 +102,7 @@ formula1-driving-assistant/
 ├── cli.py               # Interactive menu interface
 ├── data_loader.py       # FastF1 API wrapper and data processing
 ├── track_visualizer.py  # Matplotlib visualizations
+├── lap_replay.py        # Animated lap replay with controls
 ├── requirements.txt     # Python dependencies
 ├── README.md           
 └── .fastf1_cache/       # Auto-created cache directory
@@ -124,6 +126,19 @@ Four-panel view showing:
 - Speed trace over lap distance
 - Throttle & brake inputs
 - Gear selection throughout the lap
+
+### 🆕 Animated Lap Replay
+Watch the lap unfold in real-time:
+- **Car marker** moving through the track with trail
+- **Live telemetry** — Speed, Gear, Throttle %, Brake %
+- **Input visualization** — Throttle/brake bars updating live
+- **Playback controls**:
+  - `Space` — Play/Pause
+  - `R` — Reset to start
+  - `←/→` — Step frame by frame
+  - `+/-` — Speed up/slow down (0.25x to 4x)
+  - GUI buttons for Play, Pause, Reset
+  - Speed slider for precise control
 
 ## 🔧 Configuration
 

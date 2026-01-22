@@ -42,6 +42,7 @@ from track_visualizer import (
     show_plot,
     save_plot
 )
+from lap_replay import run_lap_replay
 
 # Initialize rich console
 console = Console()
@@ -239,6 +240,7 @@ def select_visualization_mode() -> str:
         "🏁 Track Map with Driving Zones",
         "📊 Full Telemetry Dashboard",
         "🌈 Speed Gradient Map",
+        "🎬 Animated Lap Replay",
         "💾 Save All Visualizations",
         "← Back to driver selection"
     ]
@@ -258,6 +260,8 @@ def select_visualization_mode() -> str:
         return "dashboard"
     elif "Speed Gradient" in answer:
         return "speed"
+    elif "Animated Lap Replay" in answer:
+        return "replay"
     elif "Save All" in answer:
         return "save_all"
     
@@ -353,6 +357,11 @@ def run_analysis(year: int, round_number: int, session_type: str,
         fig = create_track_plot(telemetry, zones, title=title, 
                                show_speed_gradient=True, rotation=rotation)
         show_plot(fig)
+        
+    elif viz_mode == "replay":
+        console.print("[cyan]Starting animated lap replay...[/cyan]")
+        console.print("[dim]Controls: Space=Play/Pause | R=Reset | ←→=Step | +/-=Speed[/dim]")
+        run_lap_replay(telemetry, zones, title=title, rotation=rotation)
         
     elif viz_mode == "save_all":
         console.print("[cyan]Generating and saving all visualizations...[/cyan]")
