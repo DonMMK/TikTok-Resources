@@ -40,7 +40,7 @@ def run_step(gp_name, session):
     """Runs a single step of the predictor."""
     try:
         result = subprocess.run(
-            [sys.executable, "f1_predictor_v10.py", "--year", "2023", "--gp", gp_name, "--session", session],
+            [sys.executable, "f1_predictor_v11.py", "--year", "2023", "--gp", gp_name, "--session", session],
             capture_output=True, text=True, check=False
         )
         return result.stdout
@@ -48,7 +48,7 @@ def run_step(gp_name, session):
         return ""
 
 def parse_winner(output):
-    """Extracts the winner from the V10 CLI output."""
+    """Extracts the winner from the v11 CLI output."""
     match = re.search(r"│ ([A-Z]{3})\s+│ \d+\.\d+%", output)
     if match:
         return match.group(1)
@@ -57,7 +57,7 @@ def parse_winner(output):
 def main():
     console = Console()
     
-    table = Table(title="2023 Season Validation Test (V10 Engine)")
+    table = Table(title="2023 Season Validation Test (v11 Engine)")
     table.add_column("Rd", justify="right", style="cyan", no_wrap=True)
     table.add_column("GP Name", style="white")
     table.add_column("Real Winner", style="green")

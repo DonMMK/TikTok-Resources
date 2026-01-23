@@ -45,7 +45,7 @@ RACES = [
 SPRINT_ROUNDS = ["China", "Miami", "Belgium", "United States", "Brazil", "Qatar"]
 
 def get_prediction(gp_name):
-    """Runs the V10 predictor and parses the winner."""
+    """Runs the v11 predictor and parses the winner."""
     
     # 1. Determine Physics Session
     phys_session = "FP1" if gp_name in SPRINT_ROUNDS else "FP2"
@@ -53,13 +53,13 @@ def get_prediction(gp_name):
     # Run Physics Analysis
     # We suppress output to keep the benchmark clean
     subprocess.run(
-        [sys.executable, "f1_predictor_v10.py", "--year", "2025", "--gp", gp_name, "--session", phys_session],
+        [sys.executable, "f1_predictor_v11.py", "--year", "2025", "--gp", gp_name, "--session", phys_session],
         capture_output=True, text=True
     )
 
     # 2. Run Race Simulation (Q)
     result = subprocess.run(
-        [sys.executable, "f1_predictor_v10.py", "--year", "2025", "--gp", gp_name, "--session", "Q"],
+        [sys.executable, "f1_predictor_v11.py", "--year", "2025", "--gp", gp_name, "--session", "Q"],
         capture_output=True, text=True
     )
     
