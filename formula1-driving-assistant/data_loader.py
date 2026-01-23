@@ -58,6 +58,73 @@ class DrivingZones:
     corner_zones: List[Dict[str, Any]]        # Contains corner info with apex
 
 
+@dataclass
+class WeatherData:
+    """Container for weather/track conditions"""
+    air_temp: float
+    track_temp: float
+    humidity: float
+    pressure: float
+    wind_speed: float
+    wind_direction: float
+    rainfall: bool
+    
+    def get_condition_string(self) -> str:
+        """Return a human-readable weather condition string."""
+        if self.rainfall:
+            return "WET"
+        elif self.track_temp > 40:
+            return "HOT"
+        elif self.track_temp < 20:
+            return "COLD"
+        else:
+            return "DRY"
+
+
+@dataclass
+class TrackConditions:
+    """Container for overall track/session conditions"""
+    weather: WeatherData
+    tire_compound: str
+    tire_life: int
+    driver: str
+    team: str
+    session_type: str
+    track_name: str
+    
+    def get_tire_color(self) -> str:
+        """Return tire compound color."""
+        colors = {
+            'SOFT': '#FF0000',       # Red
+            'MEDIUM': '#FFD700',     # Yellow
+            'HARD': '#FFFFFF',       # White
+            'INTERMEDIATE': '#00FF00', # Green
+            'WET': '#0088FF',        # Blue
+        }
+        return colors.get(self.tire_compound.upper(), '#888888')
+
+
+@dataclass
+class CornerInfo:
+    """Enhanced corner information with classification"""
+    number: int
+    name: str
+    entry_idx: int
+    apex_idx: int
+    exit_idx: int
+    entry_speed: float
+    apex_speed: float
+    exit_speed: float
+    apex_gear: int
+    x: float
+    y: float
+    distance: float
+    speed_class: str        # 'HIGH_SPEED', 'MEDIUM_SPEED', 'LOW_SPEED'
+    corner_type: str        # 'HAIRPIN', 'SWEEPER', 'CHICANE', '90_DEGREE', 'KINK'
+    direction: str          # 'LEFT', 'RIGHT'
+    angle: float            # Turn angle in degrees
+
+
 def get_available_seasons() -> List[int]:
     """Get list of available F1 seasons (2018 onwards has good telemetry data)"""
     current_year = 2026
@@ -145,7 +212,7 @@ def load_session(year: int, round_number: int, session_type: str = 'Q'):
         FastF1 Session object
     """
     session = fastf1.get_session(year, round_number, session_type)
-    session.load(telemetry=True, weather=False, messages=False)
+    session.load(telemetry=True, weather=True, messages=False)
     return session
 
 
@@ -373,6 +440,250 @@ def get_circuit_info(session) -> Dict[str, Any]:
         }
     except Exception:
         return {'rotation': 0.0, 'corners': []}
+
+
+def get_weather_data(session) -> Optional[WeatherData]:
+    """
+    Get weather conditions from the session.
+    Uses average values across the session.
+    """
+    try:
+        if session.weather_data is None or session.weather_data.empty:
+            return None
+        
+        weather = session.weather_data
+        return WeatherData(
+            air_temp=float(weather['AirTemp'].mean()),
+            track_temp=float(weather['TrackTemp'].mean()),
+            humidity=float(weather['Humidity'].mean()),
+            pressure=float(weather['Pressure'].mean()),
+            wind_speed=float(weather['WindSpeed'].mean()),
+            wind_direction=float(weather['WindDirection'].mean()),
+            rainfall=bool(weather['Rainfall'].any())
+        )
+    except Exception as e:
+        print(f"Error getting weather data: {e}")
+        return None
+
+
+def get_track_conditions(session, driver: Optional[str] = None) -> Optional[TrackConditions]:
+    """
+    Get full track conditions including weather and tire info.
+    
+    Args:
+        session: FastF1 session object
+        driver: Optional driver code. If None, uses overall fastest.
+    
+    Returns:
+        TrackConditions object
+    """
+    try:
+        # Get weather
+        weather = get_weather_data(session)
+        if weather is None:
+            weather = WeatherData(
+                air_temp=25.0, track_temp=30.0, humidity=50.0,
+                pressure=1013.0, wind_speed=5.0, wind_direction=0.0,
+                rainfall=False
+            )
+        
+        # Get lap info
+        if driver:
+            laps = session.laps.pick_drivers(driver)
+            fastest = laps.pick_fastest()
+        else:
+            fastest = session.laps.pick_fastest()
+        
+        if fastest is None:
+            return None
+        
+        compound = str(fastest.get('Compound', 'UNKNOWN'))
+        tire_life = int(fastest.get('TyreLife', 0)) if pd.notna(fastest.get('TyreLife')) else 0
+        driver_code = str(fastest.get('Driver', 'UNK'))
+        team = str(fastest.get('Team', 'Unknown'))
+        
+        # Get track name
+        track_name = session.event.get('EventName', 'Unknown Track')
+        
+        return TrackConditions(
+            weather=weather,
+            tire_compound=compound,
+            tire_life=tire_life,
+            driver=driver_code,
+            team=team,
+            session_type=session.name,
+            track_name=track_name
+        )
+    except Exception as e:
+        print(f"Error getting track conditions: {e}")
+        return None
+
+
+def classify_corner_type(entry_speed: float, apex_speed: float, exit_speed: float, 
+                         angle: float, track_avg_speed: float) -> Tuple[str, str]:
+    """
+    Classify corner by type and speed class.
+    
+    Returns:
+        Tuple of (speed_class, corner_type)
+    """
+    # Speed classification based on apex speed relative to track average
+    speed_ratio = apex_speed / track_avg_speed if track_avg_speed > 0 else 0.5
+    
+    if speed_ratio > 0.75:
+        speed_class = 'HIGH_SPEED'
+    elif speed_ratio > 0.50:
+        speed_class = 'MEDIUM_SPEED'
+    else:
+        speed_class = 'LOW_SPEED'
+    
+    # Corner type based on angle and speed
+    abs_angle = abs(angle) if angle else 90
+    
+    if abs_angle >= 150:
+        corner_type = 'HAIRPIN'
+    elif abs_angle <= 30:
+        corner_type = 'KINK'
+    elif abs_angle <= 60 and speed_class == 'HIGH_SPEED':
+        corner_type = 'SWEEPER'
+    elif abs_angle >= 80 and abs_angle <= 100:
+        corner_type = '90_DEGREE'
+    elif speed_class == 'LOW_SPEED' and abs_angle > 100:
+        corner_type = 'HAIRPIN'
+    else:
+        corner_type = 'SWEEPER' if speed_class == 'HIGH_SPEED' else '90_DEGREE'
+    
+    return speed_class, corner_type
+
+
+def get_corner_direction(x_before: float, y_before: float, x_apex: float, y_apex: float,
+                         x_after: float, y_after: float) -> Tuple[str, float]:
+    """
+    Determine corner direction and angle.
+    
+    Returns:
+        Tuple of (direction, angle_degrees)
+    """
+    # Vector from before to apex
+    v1x = x_apex - x_before
+    v1y = y_apex - y_before
+    
+    # Vector from apex to after
+    v2x = x_after - x_apex
+    v2y = y_after - y_apex
+    
+    # Cross product to determine direction
+    cross = v1x * v2y - v1y * v2x
+    
+    # Dot product for angle
+    dot = v1x * v2x + v1y * v2y
+    mag1 = np.sqrt(v1x**2 + v1y**2)
+    mag2 = np.sqrt(v2x**2 + v2y**2)
+    
+    if mag1 > 0 and mag2 > 0:
+        cos_angle = dot / (mag1 * mag2)
+        cos_angle = np.clip(cos_angle, -1, 1)
+        angle = np.degrees(np.arccos(cos_angle))
+    else:
+        angle = 90.0
+    
+    direction = 'RIGHT' if cross > 0 else 'LEFT'
+    
+    return direction, 180 - angle  # Convert to turn angle
+
+
+def get_enhanced_corners(session, telemetry: TelemetryData, 
+                         corner_zones: List[Dict[str, Any]]) -> List[CornerInfo]:
+    """
+    Enhance corner data with official names and classifications.
+    
+    Args:
+        session: FastF1 session object
+        telemetry: TelemetryData object
+        corner_zones: Basic corner data from analyze_driving_zones
+    
+    Returns:
+        List of CornerInfo objects with full classification
+    """
+    enhanced_corners = []
+    
+    # Get official corner data from circuit info
+    try:
+        circuit_info = session.get_circuit_info()
+        official_corners = circuit_info.corners.to_dict('records') if hasattr(circuit_info, 'corners') else []
+    except:
+        official_corners = []
+    
+    # Calculate track average speed for classification
+    track_avg_speed = float(np.mean(telemetry.speed))
+    
+    for i, corner in enumerate(corner_zones):
+        # Find closest official corner by distance
+        corner_name = f"Turn {corner['number']}"
+        corner_angle = 90.0  # Default
+        
+        for official in official_corners:
+            official_dist = official.get('Distance', 0)
+            corner_dist = corner.get('distance', 0)
+            
+            if abs(official_dist - corner_dist) < 150:  # Within 150m
+                corner_num = official.get('Number', corner['number'])
+                corner_letter = official.get('Letter', '')
+                if corner_letter:
+                    corner_name = f"Turn {corner_num}{corner_letter}"
+                else:
+                    corner_name = f"Turn {corner_num}"
+                corner_angle = abs(official.get('Angle', 90.0))
+                break
+        
+        # Get direction and angle from telemetry
+        apex_idx = corner['apex_idx']
+        entry_idx = corner['entry_idx']
+        exit_idx = corner['exit_idx']
+        
+        # Sample points for direction calculation
+        before_idx = max(0, entry_idx - 20)
+        after_idx = min(len(telemetry.x) - 1, exit_idx + 20)
+        
+        direction, turn_angle = get_corner_direction(
+            telemetry.x[before_idx], telemetry.y[before_idx],
+            telemetry.x[apex_idx], telemetry.y[apex_idx],
+            telemetry.x[after_idx], telemetry.y[after_idx]
+        )
+        
+        # Use calculated angle if official not available
+        if corner_angle == 90.0:
+            corner_angle = turn_angle
+        
+        # Classify corner
+        speed_class, corner_type = classify_corner_type(
+            corner['entry_speed'],
+            corner['apex_speed'],
+            corner['exit_speed'],
+            corner_angle,
+            track_avg_speed
+        )
+        
+        enhanced_corners.append(CornerInfo(
+            number=corner['number'],
+            name=corner_name,
+            entry_idx=entry_idx,
+            apex_idx=apex_idx,
+            exit_idx=exit_idx,
+            entry_speed=corner['entry_speed'],
+            apex_speed=corner['apex_speed'],
+            exit_speed=corner['exit_speed'],
+            apex_gear=corner['apex_gear'],
+            x=corner['x'],
+            y=corner['y'],
+            distance=corner['distance'],
+            speed_class=speed_class,
+            corner_type=corner_type,
+            direction=direction,
+            angle=corner_angle
+        ))
+    
+    return enhanced_corners
 
 
 def get_driver_colors(session) -> Dict[str, Tuple[int, int, int]]:

@@ -34,7 +34,9 @@ from data_loader import (
     get_lap_telemetry,
     analyze_driving_zones,
     get_all_drivers_fastest_laps,
-    get_circuit_info
+    get_circuit_info,
+    get_track_conditions,
+    get_enhanced_corners
 )
 from track_visualizer import (
     create_track_plot,
@@ -361,7 +363,24 @@ def run_analysis(year: int, round_number: int, session_type: str,
     elif viz_mode == "replay":
         console.print("[cyan]Starting animated lap replay...[/cyan]")
         console.print("[dim]Controls: Space=Play/Pause | R=Reset | ←→=Step | +/-=Speed[/dim]")
-        run_lap_replay(telemetry, zones, title=title, rotation=rotation)
+        
+        # Get enhanced data for replay
+        track_conditions = get_track_conditions(session, driver)
+        enhanced_corners = get_enhanced_corners(session, telemetry, zones.corner_zones)
+        
+        if track_conditions:
+            console.print(f"[dim]Track: {track_conditions.track_name} | "
+                         f"Tire: {track_conditions.tire_compound} | "
+                         f"Weather: {track_conditions.weather.get_condition_string()}[/dim]")
+        
+        run_lap_replay(
+            telemetry=telemetry, 
+            zones=zones, 
+            track_conditions=track_conditions,
+            enhanced_corners=enhanced_corners,
+            title=title, 
+            rotation=rotation
+        )
         
     elif viz_mode == "save_all":
         console.print("[cyan]Generating and saving all visualizations...[/cyan]")

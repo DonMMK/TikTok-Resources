@@ -100,9 +100,9 @@ python main.py --year 2024 --round 1 --session Q --save output.png
 formula1-driving-assistant/
 ├── main.py              # Entry point with CLI argument handling
 ├── cli.py               # Interactive menu interface
-├── data_loader.py       # FastF1 API wrapper and data processing
+├── data_loader.py       # FastF1 API wrapper, data processing, corner classification
 ├── track_visualizer.py  # Matplotlib visualizations
-├── lap_replay.py        # Animated lap replay with controls
+├── lap_replay.py        # Enhanced animated lap replay with car icon & status info
 ├── requirements.txt     # Python dependencies
 ├── README.md           
 └── .fastf1_cache/       # Auto-created cache directory
@@ -128,9 +128,25 @@ Four-panel view showing:
 - Gear selection throughout the lap
 
 ### 🆕 Animated Lap Replay
-Watch the lap unfold in real-time:
-- **Car marker** moving through the track with trail
+Watch the lap unfold in real-time with our enhanced replay system:
+- **F1 Car Icon** — Realistic car shape instead of a simple dot, rotating with the racing line
 - **Live telemetry** — Speed, Gear, Throttle %, Brake %
+- **Track Conditions Panel** — Weather (temperature, humidity, wind), tire compound with color-coded indicator, tire age
+- **Driver Status Info Box** — Real-time updates showing:
+  - 🚀 **FULL THROTTLE** — Flat out on the straights
+  - ⬆️ **ACCELERATING** — Getting back on the power
+  - 🛑 **BRAKING** — Heavy braking zones
+  - ➡️ **COASTING** — Trail braking or lift-off
+  - 🔄 **CORNER** — Mid-corner
+  - ⬆️/⬇️ **GEAR UP/DOWN** — Gear change notifications
+  - 🟢 **DRS ACTIVE** — When DRS is deployed
+- **Corner Approach Info** — When approaching a corner:
+  - Corner name/number (e.g., "Turn 1", "Turn 4")
+  - Corner type: HAIRPIN, SWEEPER, 90 DEGREE, KINK
+  - Speed class: HIGH SPEED, MEDIUM SPEED, LOW SPEED
+  - Direction: LEFT ⟲ or RIGHT ⟳ with angle
+  - Phase: APPROACH → ENTRY → APEX → EXIT
+  - Speed targets: Entry/Apex/Exit speeds
 - **Input visualization** — Throttle/brake bars updating live
 - **Playback controls**:
   - `Space` — Play/Pause

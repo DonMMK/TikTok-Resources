@@ -10,6 +10,19 @@ Usage:
     python main.py --quick   # Quick mode with prompts
 """
 
+# Set matplotlib backend BEFORE any other imports
+import matplotlib
+try:
+    matplotlib.use('Qt5Agg')
+except:
+    try:
+        matplotlib.use('TkAgg')
+    except:
+        try:
+            matplotlib.use('GTK3Agg')
+        except:
+            pass  # Use default
+
 import argparse
 import sys
 
