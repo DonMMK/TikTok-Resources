@@ -1,7 +1,7 @@
 # PROJECT: F1 "Weekend-Accumulator" Strategy Engine 
 
 ## How to run
-python f1_predictor_v9.py --year 2025 --gp "Australia" --session Q
+python f1_predictor_v10.py --year 2025 --gp "Australia" --session Q
 
 ```
 python -c "import fastf1; print(fastf1.get_event_schedule(2025)[['RoundNumber', 'Country', 'EventName']].to_string())"
