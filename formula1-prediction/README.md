@@ -1,83 +1,295 @@
-# PROJECT: F1 "Weekend-Accumulator" Strategy Engine 
+# 🏎️ F1 Race Winner Predictor
 
-Algorithm decides the winner based on four weighted layers.
+> **A Monte Carlo simulation engine that predicts Formula 1 race winners using qualifying data and track-specific physics.**
 
-Layer 1: The "Qualifying Anchor" (Base Pace)
-The Logic: The model assumes Qualifying is the only "true" test of car speed, free from fuel/tyre management.
+![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)
+![FastF1](https://img.shields.io/badge/FastF1-3.3+-green.svg)
 
-The Math: RacePace = PoleTime + 5.0s + DeltaToPole
+---
 
-The Effect: If Lando Norris qualifies P1 and Max Verstappen qualifies P2 (+0.2s), the model starts the race assuming Lando is 0.2s per lap faster.
+## 📋 Table of Contents
 
-Critique: This is the model's biggest weakness. In reality, cars like the Red Bull are often setup for Race Pace, meaning they are faster on Sunday than Saturday. The model struggles to see this.
+- [How It Works](#-how-it-works)
+- [Installation](#-installation)
+- [Usage](#-usage)
+- [Benchmarking](#-benchmarking)
+- [Historical Results](#-historical-results)
+- [Algorithm Details](#-algorithm-details)
 
-Layer 2: The "Elite Tier" Buff (Tyre Management)
-The Logic: Top teams don't just drive fast; they consume tyres slower.
+---
 
-The Coefficient: -0.2s per lap pace bonus.
+## 🧠 How It Works
 
-Who gets it: VER, NOR, PIA, LEC, HAM, RUS, SAI.
+The algorithm predicts race winners using **four weighted layers** combined with **Monte Carlo simulation** (5,000 runs).
 
-The Effect: This effectively kills the chances of mid-field teams (Aston Martin, Alpine) winning, even if they qualify P3. This corrects the "Fernando Alonso / George Russell Glory Run" anomalies from earlier versions.
+### Layer 1: Qualifying Anchor (Base Pace)
 
-Layer 3: The "Max Factor" (Driver Skill)
-The Logic: Max Verstappen and Lando Norris are currently statistically superior at delivering consistent lap times without mistakes.
-
-The Coefficients:
-
-Max (VER): -0.1s Pace Bonus, 0.2 Consistency Variance (Low Variance).
-
-Lando (NOR): -0.05s Pace Bonus, 0.25 Consistency Variance.
-
-The Effect: This is the "Tie Breaker." If Max and Charles Leclerc have the exact same car performance, the model hands the win to Max because of this -0.1s constant.
-
-Layer 4: The "Hunter" Logic (Overtaking)
-The Logic: Starting P10 at Monaco is a death sentence. Starting P10 at Spa is just a minor inconvenience.
-
-The Math: TrafficDrag = (GridPos * 0.5) * PassDifficulty
-
-The Hunter Bonus: If the driver is Elite (Tier 1), the PassDifficulty is halved.
-
-The Effect:
-
-At Monaco (Diff 0.95), starting P5 adds 2.3s of drag. Impossible to win.
-
-At Spa (Diff 0.2), starting P5 adds only 0.5s of drag. Max Verstappen (Hunter) reduces this to 0.25s. He can easily win from P5.
-
-## How to run
-python f1_predictor_v10.py --year 2025 --gp "Australia" --session Q
+Qualifying is treated as the purest test of car speed (no fuel/tyre management).
 
 ```
+RacePace = PoleTime + 5.0s + DeltaToPole
+```
+
+**Example:** If Norris qualifies P1 and Verstappen qualifies P2 (+0.2s), the model assumes Norris is 0.2s/lap faster.
+
+### Layer 2: Elite Tier Buff (Tyre Management)
+
+Top teams consume tyres slower, giving them a pace advantage.
+
+| Drivers with Buff | Pace Bonus |
+|-------------------|------------|
+| VER, NOR, PIA, LEC, HAM, RUS, SAI | -0.2s/lap |
+
+### Layer 3: Driver Skill Factor
+
+Elite drivers deliver more consistent lap times with fewer mistakes.
+
+| Driver | Pace Bonus | Consistency Variance |
+|--------|------------|---------------------|
+| VER (Verstappen) | -0.1s | 0.2 (very low) |
+| NOR (Norris) | -0.05s | 0.25 (low) |
+| Others | 0s | 0.4 (standard) |
+
+### Layer 4: Hunter Logic (Overtaking)
+
+Starting position matters differently depending on the track.
+
+```
+TrafficDrag = (GridPosition × 0.5) × PassDifficulty
+```
+
+**Hunter Bonus:** Elite drivers (VER, NOR, PIA, LEC) have PassDifficulty halved.
+
+| Track | Pass Difficulty | Effect of Starting P5 |
+|-------|-----------------|----------------------|
+| Monaco | 0.95 | +2.4s drag (nearly impossible to win) |
+| Singapore | 0.85 | +2.1s drag |
+| Hungary | 0.70 | +1.75s drag |
+| Spa | 0.20 | +0.5s drag (easy recovery) |
+| Bahrain | 0.30 | +0.75s drag |
+
+---
+
+## 🚀 Installation
+
+```bash
+cd formula1-prediction
+
+# Install dependencies
+pip install fastf1 scikit-learn numpy pandas rich
+```
+
+**Or create a requirements.txt:**
+```txt
+fastf1>=3.3.0
+scikit-learn>=1.3.0
+numpy>=1.24.0
+pandas>=2.0.0
+rich>=13.0.0
+```
+
+---
+
+## 💻 Usage
+
+### List Available Races
+
+```bash
 python -c "import fastf1; print(fastf1.get_event_schedule(2025)[['RoundNumber', 'Country', 'EventName']].to_string())"
 ```
 
-## Testing Algorithm Accuracy using 2025
+### Run a Prediction
 
-| Round | Country              | Event Name                | Actual Winner | Predicted Winner | Whether algorithm was correct or not |
-|------:|----------------------|---------------------------|---------------|------------------|---------|
-|     1 | Australia            | Australian Grand Prix     |      Lando > Max > George         |                  |         |
-|     2 | China                | Chinese Grand Prix        |         Oscar > Lando > George      |                  |         |
-|     3 | Japan                | Japanese Grand Prix       |       Max > Lando > Oscar       |                  |         |
-|     4 | Bahrain              | Bahrain Grand Prix        |        Oscar > George > Lando       |                  |         |
-|     5 | Saudi Arabia         | Saudi Arabian Grand Prix  |       Oscar > Max > Charles        |                  |         |
-|     6 | United States        | Miami Grand Prix          |       Oscar > Lando > George        |                  |         |
-|     7 | Italy                | Emilia Romagna Grand Prix |       Max > Lando > Oscar        |                  |         |
-|     8 | Monaco               | Monaco Grand Prix         |       Lando > Charles > Oscar        |                  |         |
-|     9 | Spain                | Spanish Grand Prix        |       Oscar > Lando > Charles        |                  |         |
-|    10 | Canada               | Canadian Grand Prix       |      George > Max > Kimi         |                  |         |
-|    11 | Austria              | Austrian Grand Prix       |      Lando > Oscar > Charles         |                  |         |
-|    12 | United Kingdom       | British Grand Prix        |   Lando > Oscar > Nico            |                  |         |
-|    13 | Belgium              | Belgian Grand Prix        |     Oscar > Lando > Charles          |                  |         |
-|    14 | Hungary              | Hungarian Grand Prix      |      Lando > Oscar > George         |                  |         |
-|    15 | Netherlands          | Dutch Grand Prix          |      Oscar > Max > Issac         |                  |         |
-|    16 | Italy                | Italian Grand Prix        |       Max > Lando > Oscar        |                  |         |
-|    17 | Azerbaijan           | Azerbaijan Grand Prix     |       Max > George > Carlos        |                  |         |
-|    18 | Singapore            | Singapore Grand Prix      |         George > Max > Lando      |                  |         |
-|    19 | United States        | United States Grand Prix  |        Max > Lando > Charles       |                  |         |
-|    20 | Mexico               | Mexico City Grand Prix    |        Lando > Charles > Max       |                  |         |
-|    21 | Brazil               | São Paulo Grand Prix      |   Lando > Kimi > Max            |                  |         |
-|    22 | United States        | Las Vegas Grand Prix      |       Max > George > Kimi        |                  |         |
-|    23 | Qatar                | Qatar Grand Prix          |        Max > Oscar > Carlos       |                  |         |
-|    24 | United Arab Emirates | Abu Dhabi Grand Prix      |        Max > Oscar > Lando       |                  |         |
+```bash
+# Standard weekend (uses FP2 for physics)
+python f1_predictor_v11.py --year 2025 --gp "Australia" --session Q
+
+# Sprint weekend (uses FP1 for physics)
+python f1_predictor_v11.py --year 2025 --gp "China" --session Q
+```
+
+### Parameters
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `--year` | Season year | `2025` |
+| `--gp` | Grand Prix name | `"Australia"`, `"Monaco"`, `"Great Britain"` |
+| `--session` | Session type | `Q` (Qualifying), `FP1`, `FP2` |
+
+---
+
+## 📊 Benchmarking
+
+Test the algorithm against historical results:
+
+```bash
+# Test against 2023 season
+python benchmark_2023.py
+
+# Test against 2024 season
+python benchmark_2024.py
+
+# Test against 2025 season
+python benchmark_2025.py
+```
+
+**Sprint Weekend Note:** The benchmarks automatically use FP1 for sprint weekends (FP2 is parc fermé).
+
+### Sprint Rounds by Year
+
+| Year | Sprint Weekends |
+|------|-----------------|
+| 2023 | Azerbaijan, Austria, Belgium, Qatar, United States, Brazil |
+| 2024 | China, Miami, Austria, United States, Brazil, Qatar |
+| 2025 | China, Miami, Belgium, United States, Brazil, Qatar |
+
+---
+
+## 🏆 Historical Results
+
+### 2023 Season (Verstappen Dominance)
+
+| Rd | Grand Prix | Winner |
+|---:|------------|--------|
+| 1 | Bahrain | VER |
+| 2 | Saudi Arabia | PER |
+| 3 | Australia | VER |
+| 4 | Azerbaijan | PER |
+| 5 | Miami | VER |
+| 6 | Monaco | VER |
+| 7 | Spain | VER |
+| 8 | Canada | VER |
+| 9 | Austria | VER |
+| 10 | Great Britain | VER |
+| 11 | Hungary | VER |
+| 12 | Belgium | VER |
+| 13 | Netherlands | VER |
+| 14 | Italy | VER |
+| 15 | Singapore | SAI |
+| 16 | Japan | VER |
+| 17 | Qatar | VER |
+| 18 | United States | VER |
+| 19 | Mexico | VER |
+| 20 | Brazil | VER |
+| 21 | Las Vegas | VER |
+| 22 | Abu Dhabi | VER |
+
+### 2024 Season (Multi-Team Competition)
+
+| Rd | Grand Prix | Winner |
+|---:|------------|--------|
+| 1 | Bahrain | VER |
+| 2 | Saudi Arabia | VER |
+| 3 | Australia | SAI |
+| 4 | Japan | VER |
+| 5 | China | VER |
+| 6 | Miami | NOR |
+| 7 | Emilia Romagna | VER |
+| 8 | Monaco | LEC |
+| 9 | Canada | VER |
+| 10 | Spain | VER |
+| 11 | Austria | RUS |
+| 12 | Great Britain | HAM |
+| 13 | Hungary | PIA |
+| 14 | Belgium | HAM |
+| 15 | Netherlands | NOR |
+| 16 | Italy | LEC |
+| 17 | Azerbaijan | PIA |
+| 18 | Singapore | NOR |
+| 19 | United States | LEC |
+| 20 | Mexico | SAI |
+| 21 | Brazil | VER |
+| 22 | Las Vegas | RUS |
+| 23 | Qatar | VER |
+| 24 | Abu Dhabi | NOR |
+
+### 2025 Season
+
+| Rd | Grand Prix | Winner |
+|---:|------------|--------|
+| 1 | Australia | NOR |
+| 2 | China | PIA |
+| 3 | Japan | VER |
+| 4 | Bahrain | PIA |
+| 5 | Saudi Arabia | PIA |
+| 6 | Miami | PIA |
+| 7 | Emilia Romagna | VER |
+| 8 | Monaco | NOR |
+| 9 | Spain | PIA |
+| 10 | Canada | RUS |
+| 11 | Austria | NOR |
+| 12 | Great Britain | NOR |
+| 13 | Belgium | PIA |
+| 14 | Hungary | NOR |
+| 15 | Netherlands | PIA |
+| 16 | Italy | VER |
+| 17 | Azerbaijan | VER |
+| 18 | Singapore | RUS |
+| 19 | United States | VER |
+| 20 | Mexico | NOR |
+| 21 | Brazil | NOR |
+| 22 | Las Vegas | VER |
+| 23 | Qatar | VER |
+| 24 | Abu Dhabi | VER |
+
+---
+
+## 🔧 Algorithm Details
+
+### Configuration Constants
+
+```python
+MONTE_CARLO_RUNS = 5000
+RACE_START_FUEL = 100.0
+```
+
+### Safety Car Probabilities
+
+| Track | SC Probability |
+|-------|---------------|
+| Singapore | 100% |
+| Monaco | 80% |
+| Great Britain | 60% |
+| Italy | 50% |
+| Default | 30% |
+
+### Track Lap Counts
+
+| Track | Laps |
+|-------|------|
+| Monaco | 78 |
+| Singapore | 62 |
+| Great Britain | 52 |
+| Belgium | 44 |
+| Default | 58 |
+
+---
+
+## 📁 Project Structure
+
+```
+formula1-prediction/
+├── f1_predictor_v11.py    # Main prediction engine (latest)
+├── benchmark_2023.py      # 2023 season validation
+├── benchmark_2024.py      # 2024 season validation
+├── benchmark_2025.py      # 2025 season validation
+├── README.md              # This file
+└── f1_cache/              # FastF1 data cache
+```
+
+---
+
+## ⚠️ Known Limitations
+
+1. **Qualifying ≠ Race Pace:** Some cars (e.g., Red Bull) are setup for race pace, making them faster on Sunday than Saturday.
+2. **Strategy Not Modeled:** Undercut/overcut pit strategies are not simulated.
+3. **Crashes & DNFs:** Random incidents (Austria 2024 VER/NOR crash) cannot be predicted.
+4. **DSQs:** Post-race disqualifications (Belgium 2024 RUS DSQ) change official results.
+
+---
+
+## 📄 License
+
+MIT License
 
 
