@@ -10,3 +10,4 @@ build/
 .mypy_cache/
 *.sqlite
 *ff1pkl
+*.DS_Store
