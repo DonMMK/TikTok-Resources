@@ -75,7 +75,7 @@ def get_prediction(gp_name):
 
 def main():
     console = Console()
-    table = Table(title="Algorithm Accuracy Test (2025 Season)")
+    table = Table(title="2025 Season Validation Test (v11 Engine)")
     
     table.add_column("Rd", justify="right", style="cyan", no_wrap=True)
     table.add_column("GP Name", style="magenta")
