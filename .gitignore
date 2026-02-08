@@ -12,3 +12,4 @@ build/
 *ff1pkl
 *.DS_Store
 *node_modules
+*.env
